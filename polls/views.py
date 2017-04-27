@@ -1,7 +1,10 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.template import loader
-from .models import Question
+from django.urls import reverse
+from django.db.models import F
+from .models import Choice, Question
+
 import code 
 # code.interact(local=dict(globals(), **locals()))
 
@@ -17,13 +20,21 @@ def detail(request, question_id):
   question = get_object_or_404(Question, pk=question_id)
   return render(request, 'polls/detail.html', {'question': question})
 
-def detail(request, question_id):
-    question = get_object_or_404(Question, pk=question_id)
-    return render(request, 'polls/detail.html', {'question': question})
+def vote(request, question_id):
+  question = get_object_or_404(Question, pk=question_id)
+  try: 
+    selected_choice = question.choice_set.get(pk=request.POST['choice'])
+  except (KeyError, Choice.DoesNotExist):
+    context = {
+      'question': question,
+      'error_message': 'You didnt select a choice.'
+    }
+    return render(request, 'polls/detail.html', context)
+  else:
+    selected_choice.votes = F('votes') + 1
+    selected_choice.save()
+    return HttpResponseRedirect(reverse('polls:results', args=(question.id,)))
 
 def results(request, question_id):
-  response = "You're looking at the results of question %s."
-  return HttpResponse(response % question_id)
-
-def vote(request, question_id):
-  return HttpResponse("You're voting on question %s." % question_id)
+  question = get_object_or_404(Question, pk=question_id)
+  return render(request, 'polls/results.html', {'question': question})
